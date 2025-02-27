@@ -8,7 +8,7 @@ You will fill out this form:
 1. Before the project starts. This is to document your intention. 
 2. Before the demo if there was any deviation from the initial plan.
 
-| Requirement/specification                                                                                | Points | Partner 1 | Partner 2 |
+| Requirement/specification                                                                                | Points | Jay       | Kyle      |
 |----------------------------------------------------------------------------------------------------------|--------|-----------|-----------|
 | **Presentation**                                                                                         |        |           |           |
 | Introduction                                                                                             | 1      |           |           |
