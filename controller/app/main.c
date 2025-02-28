@@ -66,16 +66,21 @@
 //******************************************************************************
 #include <msp430.h>
 
-char pressed_key = 'N';                     // holds key that was pressed
-int password_index = 1;                     // tracks which digit is being entered
-int status = 0;                             // tracks locked, unlocked, or unlocking
-int locked = 0;                             // status value for locked
-int unlocking = 1;                          // status value for unlocking
-int unlocked = 2;                           // status value for unlocked
+char key = 'N';                             // stores key that was pressed
 char password_char1 = '5';                  // first digit of password
 char password_char2 = '2';                  // second digit of password
 char password_char3 = '9';                  // third digit of password
 char password_char4 = '3';                  // fourth digit of password
+int password_index = 1;                     // tracks which digit is being entered
+
+int status = 0;                             // tracks locked, unlocked, or unlocking
+int locked = 0;                             // status value for locked
+int unlocking = 1;                          // status value for unlocking
+int unlocked = 2;                           // status value for unlocked
+
+int pattern = -1;                           // stores pattern to be generated
+int cursor = 0;                             // stores whether cursor is on or off
+float base_transition_period = 1.0;         // stores base transition period for led bar patterns
 
 void keypad_init(void) {
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer           
@@ -129,7 +134,8 @@ void get_key(void) {
 
         for (int col = 0; col < 4; col++) {
             if (P2IN & (BIT0 << col)) {  // Check if column is high
-                process_key(key_map[row][col]);
+                key = key_map[row][col];
+                process_key();
             }
         }
     }
@@ -137,47 +143,91 @@ void get_key(void) {
     return 'N';  // No key pressed
 }
 
-void process_key(char pressed_key) {
+void process_key() {
     if (status == locked || status == unlocking) {
-        check_password(pressed_key);
+        check_password();
     } else {
-        // send data to slave with I2C
+        switch (key) {
+        case 'A':
+            if (base_transition_period != 0.25) {
+                base_transition_period = base_transition_period - 0.25;
+            }
+            break;
+        case 'B':
+            base_transition_period = base_transition_period + 0.25;
+            break;
+        case 'C':
+            cursor ^= 1;
+            break;
+        case 'D':
+            status = locked;
+            break;
+        case '0':
+            pattern = 0;
+            break;
+        case '1':
+            pattern = 1;
+            break;
+        case '2':
+            pattern = 2;
+            break;
+        case '3':
+            pattern = 3;
+            break;
+        case '4':
+            pattern = 4;
+            break;
+        case '5':
+            pattern = 5;
+            break;
+        case '6':
+            pattern = 6;
+            break;
+        case '7':
+            pattern = 7;
+            break;
+        }
     }
+    //i2c_write();      // led bar --> status, pattern, base period
+                        // lcd --> status, pattern, base period, key, cursor
 }
 
-void check_password(char pressed_key) {
-    if (password_index == 1) {
-        if (pressed_key == password_char1) {
-            status = unlocking;
-            password_index = 2;
-        } else {
-            status = locked;
-            password_index = 1;
-        }
-    } else if (password_index == 2) {
-        if (pressed_key == password_char2) {
-            status = unlocking;
-            password_index = 3;
-        } else {
-            status = locked;
-            password_index = 1;
-        }
-    } else if (password_index == 3) {
-        if (pressed_key == password_char3) {
-            status = unlocking;
-            password_index = 4;
-        } else {
-            status = locked;
-            password_index = 1;
-        }
-    } else if (password_index == 4) {
-        if (pressed_key == password_char4) {
-            status = unlocked;
-            password_index = 1;
-        } else {
-            status = locked;
-            password_index = 1;
-        }
+void check_password(void) {
+    switch (password_index) {
+        case 1:
+            if (key == password_char1) {
+                status = unlocking;
+                password_index = 2;
+            } else {
+                status = locked;
+                password_index = 1;
+            }
+            break;
+        case 2:
+            if (key == password_char2) {
+                password_index = 3;
+            } else {
+                status = locked;
+                password_index = 1;
+            }
+            break;
+        case 3:
+            if (key == password_char3) {
+                password_index = 4;
+            } else {
+                status = locked;
+                password_index = 1;
+            }
+            break;
+        case 4:
+            if (key == password_char4) {
+                status = unlocked;
+                password_index = 1;
+            } else {
+                status = locked;
+                password_index = 1;
+            }
+            break;
     }
 }
 
