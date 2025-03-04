@@ -82,6 +82,9 @@ int pattern = -1;                           // stores pattern to be generated
 int cursor = 0;                             // stores whether cursor is on or off
 float base_transition_period = 1.0;         // stores base transition period for led bar patterns
 
+int row = 0;
+int col = 0;
+
 void rgb_led_init(void) {
     WDTCTL = WDTPW | WDTHOLD;                    // Stop watchdog timer           
     PM5CTL0 &= ~LOCKLPM5;                        // Disable High Z mode
@@ -171,12 +174,12 @@ void get_key(void) {
         {'*', '0', '#', 'D'}
     };
 
-    for (int row = 0; row < 4; row++) {
+    for (row = 0; row < 4; row++) {
         P1OUT &= ~(BIT4 | BIT5 | BIT6 | BIT7);  // Clear all rows
         P1OUT |= (BIT4 << row);  // Set one row high at a time
         __delay_cycles(1000); 
 
-        for (int col = 0; col < 4; col++) {
+        for (col = 0; col < 4; col++) {
             if (P2IN & (BIT0 << col)) {  // Check if column is high
                 key = key_map[row][col];
                 process_key();
@@ -184,7 +187,8 @@ void get_key(void) {
         }
     }
     P1OUT |= (BIT4 | BIT5 | BIT6 | BIT7);  // Reset all rows
-    return 'N';  // No key pressed
+    row = 0;                               // Reset row variable
+    col = 0;                               // Reset column variable
 }
 
 void process_key() {
