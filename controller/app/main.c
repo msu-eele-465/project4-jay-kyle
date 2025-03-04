@@ -85,6 +85,9 @@ float base_transition_period = 1.0;         // stores base transition period for
 int row = 0;
 int col = 0;
 
+int Data_Cnt = 0;
+char Packet[] = {0x03, 0x33, 0x44, 0x55};
+
 void rgb_led_init(void) {
     WDTCTL = WDTPW | WDTHOLD;                    // Stop watchdog timer           
     PM5CTL0 &= ~LOCKLPM5;                        // Disable High Z mode
@@ -128,9 +131,64 @@ void keypad_init(void) {
     __enable_interrupt();                   // Enable Maskable IRQs
 }
 
+void i2c_b0_init(void) {
+    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
+
+    UCB0CTLW0 |= UCSWRST;                   // Put eUSCI_B0 in SW Reset
+    UCB0CTLW0 |= UCSSEL__SMCLK;             // Choose BRCLK = SMCLK = 1Mhz
+    UCB0BRW = 10;                           // Divide BRCLK by 10 for SCL = 100kHz
+    UCB0CTLW0 |= UCMODE_3;                  // Put into I2C mode
+    UCB0CTLW0 |= UCMST;                     // Put into master mode
+    UCB0CTLW0 |= UCTR;                      // Put into Tx mode
+    UCB012CSA = 0x0068;                     // Slave address = 0x68
+    UCB0CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
+    UCB0TBCNT = sizeof(Packet);             // # of bytes in packet
+
+    P1SEL1 &= ~BIT3;                        // P1.3 = SCL
+    P1SEL0 |= BIT3;                            
+    P1SEL1 &= ~BIT2;                        // P1.2 = SDA
+    P1SEL0 |= BIT2;
+
+    PM5CTL0 &= ~LOCKLPM5;                   // Disable low power mode
+
+    UCB0CTLW0 &= ~UCSWRST;                  // Take eUSCI_B0 out of SW Reset
+
+    UCB0IE |= UCTXIE0;                      // Enable I2C Tx0 IR1
+    __enable_interrupt();                   // Enable Maskable IRQs
+}
+
+void i2c_b1_init(void) {
+    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
+
+    UCB1CTLW0 |= UCSWRST;                   // Put eUSCI_B1 in SW Reset
+    UCB1CTLW0 |= UCSSEL__SMCLK;             // Choose BRCLK = SMCLK = 1Mhz
+    UCB1BRW = 10;                           // Divide BRCLK by 10 for SCL = 100kHz
+    UCB1CTLW0 |= UCMODE_3;                  // Put into I2C mode
+    UCB1CTLW0 |= UCMST;                     // Put into master mode
+    UCB1CTLW0 |= UCTR;                      // Put into Tx mode
+    UCB112CSA = 0x0068;                     // Slave address = 0x68
+    UCB1CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
+    UCB1TBCNT = sizeof(Packet);             // # of bytes in packet
+
+    P4SEL1 &= ~BIT7;                        // P4.7 = SCL
+    P4SEL0 |= BIT7;                            
+    P4SEL1 &= ~BIT6;                        // P4.6 = SDA
+    P4SEL0 |= BIT6;
+
+    PM5CTL0 &= ~LOCKLPM5;                   // Disable low power mode
+
+    UCB1CTLW0 &= ~UCSWRST;                  // Take eUSCI_B1 out of SW Reset
+
+    UCB1IE |= UCTXIE0;                      // Enable I2C Tx0 IR1
+    __enable_interrupt();                   // Enable Maskable IRQs
+}
+
 int main(void)
 {
     keypad_init();
+    rgb_led_init();
+    i2c_b0_init();
+    i2c_b1_init();
 
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
     
@@ -308,3 +366,25 @@ __interrupt void RGB_Duty_ISR(void) {
             break;        
     }
 } 
+
+#pragma vector=EUSCI_B0_VECTOR
+__interrupt void EUSCI_B0_I2C_ISR(void){
+    if (Data_Cnt == (sizeof(Packet) - 1)) {
+        UCB0TXBUF = Packet[Data_Cnt];
+        Data_Cnt = 0;
+    } else {
+        UCB0TXBUF = Packet[Data_Cnt];
+        Data_Cnt++;
+    }
+}
+
+#pragma vector=EUSCI_B1_VECTOR
+__interrupt void EUSCI_B1_I2C_ISR(void){
+    if (Data_Cnt == (sizeof(Packet) - 1)) {
+        UCB1TXBUF = Packet[Data_Cnt];
+        Data_Cnt = 0;
+    } else {
+        UCB1TXBUF = Packet[Data_Cnt];
+        Data_Cnt++;
+    }
+}
