@@ -82,6 +82,31 @@ int pattern = -1;                           // stores pattern to be generated
 int cursor = 0;                             // stores whether cursor is on or off
 float base_transition_period = 1.0;         // stores base transition period for led bar patterns
 
+void rgb_led_init(void) {
+    WDTCTL = WDTPW | WDTHOLD;                    // Stop watchdog timer           
+    PM5CTL0 &= ~LOCKLPM5;                        // Disable High Z mode
+
+    // Set P2.0 (red), P2.1 (green), P2.2 (blue) as outputs for RGB led
+    P6DIR |= (BIT0 | BIT1 | BIT2);  
+    P6OUT &= ~(BIT0 | BIT1 | BIT2); 
+
+    // Configure Timer B3
+    TB3CTL |= (TBSSEL__SMCLK | MC__UP | TBCLR);  // Use SMCLK, up mode, clear
+    TB3CCR0 = 16320;                              // Set PWM period (adjust for desired frequency)
+
+    // Enable and clear interrupts for each color channel
+    TB3CCTL0 |= CCIE;                            // Interrupt for base period
+    TB3CCTL0 &= ~CCIFG; 
+    TB3CCTL1 |= CCIE;                            // Interrupt for Red
+    TB3CCTL1 &= ~CCIFG; 
+    TB3CCTL2 |= CCIE;                            // Interrupt for Green
+    TB3CCTL2 &= ~CCIFG;
+    TB3CCTL3 |= CCIE;                            // Interrupt for Blue
+    TB3CCTL3 &= ~CCIFG;
+
+    __enable_interrupt();                        // enable interrupts
+}
+
 void keypad_init(void) {
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer           
 
