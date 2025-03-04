@@ -144,6 +144,25 @@ int main(void)
     }
 }
 
+void update_rgb_led(int status, char pattern) {
+
+    if (status == unlocked) {                
+        set_rgb_led_pwm(1,1,254);           // blue
+    } else if (status == unlocking) {         
+        set_rgb_led_pwm(254,20,1);          // orange
+    } else if (status == locked) {        
+        set_rgb_led_pwm(254,1,1);           // red
+    } else {
+        set_rgb_led_pwm(0,0,0);             // off
+    }
+}
+
+void set_rgb_led_pwm(int red, int green, int blue) {
+    TB3CCR1 = red*64;   // Red brightness
+    TB3CCR2 = green*64; // Green brightness
+    TB3CCR3 = blue*64;  // Blue brightness
+}
+
 void get_key(void) {
     char key_map[4][4] = {
         {'1', '2', '3', 'A'},
@@ -261,3 +280,27 @@ __interrupt void KEYPAD_ISR(void) {
     get_key();
     P2IFG &= ~(BIT0 | BIT1 | BIT2 | BIT3);
 }
+
+#pragma vector = TIMER3_B0_VECTOR
+__interrupt void RGB_Period_ISR(void) {
+    P6OUT |= (BIT0 | BIT1 | BIT2);  // Turn ON all LEDs at start of period
+    TB3CCTL0 &= ~CCIFG;             // Clear interrupt flag
+}
+
+#pragma vector = TIMER3_B1_VECTOR
+__interrupt void RGB_Duty_ISR(void) {
+    switch (TB3IV) {
+        case 0x02:  // TB3CCR1 - Red
+            P6OUT &= ~BIT0; // Turn OFF Red
+            TB3CCTL1 &= ~CCIFG; 
+            break;
+        case 0x04:  // TB3CCR2 - Green
+            P6OUT &= ~BIT1; // Turn OFF Green
+            TB3CCTL2 &= ~CCIFG;
+            break;
+        case 0x06:  // TB3CCR3 - Blue
+            P6OUT &= ~BIT2; // Turn OFF Blue
+            TB3CCTL3 &= ~CCIFG;
+            break;        
+    }
+} 
