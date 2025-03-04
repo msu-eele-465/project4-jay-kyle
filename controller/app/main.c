@@ -82,6 +82,31 @@ int pattern = -1;                           // stores pattern to be generated
 int cursor = 0;                             // stores whether cursor is on or off
 float base_transition_period = 1.0;         // stores base transition period for led bar patterns
 
+void rgb_led_init(void) {
+    WDTCTL = WDTPW | WDTHOLD;                    // Stop watchdog timer           
+    PM5CTL0 &= ~LOCKLPM5;                        // Disable High Z mode
+
+    // Set P2.0 (red), P2.1 (green), P2.2 (blue) as outputs for RGB led
+    P6DIR |= (BIT0 | BIT1 | BIT2);  
+    P6OUT &= ~(BIT0 | BIT1 | BIT2); 
+
+    // Configure Timer B3
+    TB3CTL |= (TBSSEL__SMCLK | MC__UP | TBCLR);  // Use SMCLK, up mode, clear
+    TB3CCR0 = 16320;                              // Set PWM period (adjust for desired frequency)
+
+    // Enable and clear interrupts for each color channel
+    TB3CCTL0 |= CCIE;                            // Interrupt for base period
+    TB3CCTL0 &= ~CCIFG; 
+    TB3CCTL1 |= CCIE;                            // Interrupt for Red
+    TB3CCTL1 &= ~CCIFG; 
+    TB3CCTL2 |= CCIE;                            // Interrupt for Green
+    TB3CCTL2 &= ~CCIFG;
+    TB3CCTL3 |= CCIE;                            // Interrupt for Blue
+    TB3CCTL3 &= ~CCIFG;
+
+    __enable_interrupt();                        // enable interrupts
+}
+
 void keypad_init(void) {
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer           
 
@@ -117,6 +142,25 @@ int main(void)
         P1OUT ^= BIT0;                      // Toggle P1.0 using exclusive-OR
         __delay_cycles(100000);             // Delay for 100000*(1/MCLK)=0.1s
     }
+}
+
+void update_rgb_led(int status, char pattern) {
+
+    if (status == unlocked) {                
+        set_rgb_led_pwm(1,1,254);           // blue
+    } else if (status == unlocking) {         
+        set_rgb_led_pwm(254,20,1);          // orange
+    } else if (status == locked) {        
+        set_rgb_led_pwm(254,1,1);           // red
+    } else {
+        set_rgb_led_pwm(0,0,0);             // off
+    }
+}
+
+void set_rgb_led_pwm(int red, int green, int blue) {
+    TB3CCR1 = red*64;   // Red brightness
+    TB3CCR2 = green*64; // Green brightness
+    TB3CCR3 = blue*64;  // Blue brightness
 }
 
 void get_key(void) {
@@ -236,3 +280,27 @@ __interrupt void KEYPAD_ISR(void) {
     get_key();
     P2IFG &= ~(BIT0 | BIT1 | BIT2 | BIT3);
 }
+
+#pragma vector = TIMER3_B0_VECTOR
+__interrupt void RGB_Period_ISR(void) {
+    P6OUT |= (BIT0 | BIT1 | BIT2);  // Turn ON all LEDs at start of period
+    TB3CCTL0 &= ~CCIFG;             // Clear interrupt flag
+}
+
+#pragma vector = TIMER3_B1_VECTOR
+__interrupt void RGB_Duty_ISR(void) {
+    switch (TB3IV) {
+        case 0x02:  // TB3CCR1 - Red
+            P6OUT &= ~BIT0; // Turn OFF Red
+            TB3CCTL1 &= ~CCIFG; 
+            break;
+        case 0x04:  // TB3CCR2 - Green
+            P6OUT &= ~BIT1; // Turn OFF Green
+            TB3CCTL2 &= ~CCIFG;
+            break;
+        case 0x06:  // TB3CCR3 - Blue
+            P6OUT &= ~BIT2; // Turn OFF Blue
+            TB3CCTL3 &= ~CCIFG;
+            break;        
+    }
+} 
