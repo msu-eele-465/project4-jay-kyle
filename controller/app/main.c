@@ -99,6 +99,9 @@ void rgb_led_init(void) {
     // Configure Timer B3
     TB3CTL |= (TBSSEL__SMCLK | MC__UP | TBCLR);  // Use SMCLK, up mode, clear
     TB3CCR0 = 16320;                              // Set PWM period (adjust for desired frequency)
+    TB3CCR1 = 254*64;   // Red brightness
+    TB3CCR2 = 1*64; // Green brightness
+    TB3CCR3 = 1*64;  // Blue brightness
 
     // Enable and clear interrupts for each color channel
     TB3CCTL0 |= CCIE;                            // Interrupt for base period
@@ -140,7 +143,7 @@ void i2c_b0_init(void) {
     UCB0CTLW0 |= UCMODE_3;                  // Put into I2C mode
     UCB0CTLW0 |= UCMST;                     // Put into master mode
     UCB0CTLW0 |= UCTR;                      // Put into Tx mode
-    UCB012CSA = 0x0068;                     // Slave address = 0x68
+    UCB0I2CSA = 0x0068;                     // Slave address = 0x68
     UCB0CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
     UCB0TBCNT = sizeof(Packet);             // # of bytes in packet
 
@@ -166,7 +169,7 @@ void i2c_b1_init(void) {
     UCB1CTLW0 |= UCMODE_3;                  // Put into I2C mode
     UCB1CTLW0 |= UCMST;                     // Put into master mode
     UCB1CTLW0 |= UCTR;                      // Put into Tx mode
-    UCB112CSA = 0x0068;                     // Slave address = 0x68
+    UCB1I2CSA = 0x0068;                     // Slave address = 0x68
     UCB1CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
     UCB1TBCNT = sizeof(Packet);             // # of bytes in packet
 
@@ -205,7 +208,7 @@ int main(void)
     }
 }
 
-void update_rgb_led(int status, char pattern) {
+void update_rgb_led(int status) {
 
     if (status == unlocked) {                
         set_rgb_led_pwm(1,1,254);           // blue
@@ -303,9 +306,11 @@ void check_password(void) {
         case 1:
             if (key == password_char1) {
                 status = unlocking;
+                update_rgb_led(unlocking);
                 password_index = 2;
             } else {
                 status = locked;
+                update_rgb_led(locked);
                 password_index = 1;
             }
             break;
@@ -314,6 +319,7 @@ void check_password(void) {
                 password_index = 3;
             } else {
                 status = locked;
+                update_rgb_led(locked);
                 password_index = 1;
             }
             break;
@@ -322,15 +328,18 @@ void check_password(void) {
                 password_index = 4;
             } else {
                 status = locked;
+                update_rgb_led(locked);
                 password_index = 1;
             }
             break;
         case 4:
             if (key == password_char4) {
                 status = unlocked;
+                update_rgb_led(unlocked);
                 password_index = 1;
             } else {
                 status = locked;
+                update_rgb_led(locked);
                 password_index = 1;
             }
             break;
