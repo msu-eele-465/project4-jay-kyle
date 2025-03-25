@@ -206,8 +206,7 @@ int main(void) {
         }
         if(key_pad_flag == 1){
             get_key();
-            update_leds(status);
-            P1DIR |=  (BIT4   |   BIT5   |   BIT6   |   BIT7); 
+            P1DIR |=  (BIT4 | BIT5 | BIT6 | BIT7); 
             key_pad_flag = 0;                                   // stops the ISR from prematurly setting keypad flag
         }
 
@@ -219,7 +218,7 @@ int main(void) {
 void get_key() {
     P1OUT &= ~(BIT5 | BIT6 | BIT7);  // clears outputs to start other than BIT4
     P1OUT |= BIT4; // Activate first row
-    get_column();  
+    get_column(); 
 
     switch(col){
     case 1:
@@ -302,7 +301,8 @@ void get_key() {
     }
     P1OUT &= ~BIT7; 
 
-    process_key();
+    P1OUT |=  (BIT4   |   BIT5   |   BIT6   |   BIT7);  // sets output high to start
+    process_key(key);
 }
 
 void get_column() {
@@ -324,9 +324,9 @@ void get_column() {
     }
 }
 
-void process_key() {
+void process_key(int key) {
     if (status == locked || status == unlocking) {
-        check_password();
+        check_password(key);
     } else {
         switch (key) {
         case 'A':
@@ -373,7 +373,7 @@ void process_key() {
                         // lcd --> status, pattern, base period, key, cursor
 }
 
-void check_password(void) {
+void check_password(int key) {
     switch (password_index) {
         case 1:
             if (key == password_char1) {
