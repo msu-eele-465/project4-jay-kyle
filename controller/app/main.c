@@ -76,6 +76,7 @@ int key_pad_flag = 0;
 int int_en = 0;                             //stops intterupt from flagging after inputs go high
 int pressed = 0;
 char key = 'N';                             // starts the program at NA until a key gets pressed
+int key_num = 0;                            // binary representation of key that was pressed
 
 char password_char1 = '5';                  // first digit of password
 char password_char2 = '2';                  // second digit of password
@@ -84,11 +85,12 @@ char password_char4 = '3';                  // fourth digit of password
 int password_index = 1;                     // tracks which digit is being entered
 
 int pattern = -1;                           // stores pattern to be generated
-int cursor = 0;                             // stores whether cursor is on or off
 float base_transition_period = 1.0;         // stores base transition period for led bar patterns
 
-int Data_Cnt = 0;
-char Packet[] = {0x03, 0x33, 0x44, 0x55};
+int LED_Data_Cnt = 0;
+int LCD_Data_Cnt = 0;
+char LED_Packet[] = {0x01, 0x02, 0x03};               // status, pattern, base_period
+char LCD_Packet[] = {0x00, 0x00, 0x00};               // status, key, base_period
 
 void init_rgb_led(void) {
     WDTCTL = WDTPW | WDTHOLD;                    // Stop watchdog timer           
@@ -138,9 +140,9 @@ void i2c_b0_init(void) {
     UCB0CTLW0 |= UCMODE_3;                  // Put into I2C mode
     UCB0CTLW0 |= UCMST;                     // Put into master mode
     UCB0CTLW0 |= UCTR;                      // Put into Tx mode
-    UCB0I2CSA = 0x0068;                     // Slave address = 0x68
+    UCB0I2CSA = 0x0020;                     // Slave address = 0x20
     UCB0CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
-    UCB0TBCNT = sizeof(Packet);             // # of bytes in packet
+    UCB0TBCNT = sizeof(LCD_Packet);         // # of bytes in packet
 
     P1SEL1 &= ~BIT3;                        // P1.3 = SCL
     P1SEL0 |= BIT3;                            
@@ -164,9 +166,9 @@ void i2c_b1_init(void) {
     UCB1CTLW0 |= UCMODE_3;                  // Put into I2C mode
     UCB1CTLW0 |= UCMST;                     // Put into master mode
     UCB1CTLW0 |= UCTR;                      // Put into Tx mode
-    UCB1I2CSA = 0x0068;                     // Slave address = 0x68
+    UCB1I2CSA = 0x0020;                     // Slave address = 0x20
     UCB1CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
-    UCB1TBCNT = sizeof(Packet);             // # of bytes in packet
+    UCB1TBCNT = sizeof(LED_Packet);         // # of bytes in packet
 
     P4SEL1 &= ~BIT7;                        // P4.7 = SCL
     P4SEL0 |= BIT7;                            
@@ -212,6 +214,9 @@ int main(void) {
 
         P1OUT ^= BIT0;                      // Toggle P1.0 using exclusive-OR
         __delay_cycles(100000);             // Delay for 100000*(1/MCLK)=0.1s
+
+        //UCB1CTLW0 |= UCTXSTT;       // start condition
+        //__delay_cycles(10000);
     }
 }    
 
@@ -333,44 +338,81 @@ void process_key(int key) {
             if (base_transition_period != 0.25) {
                 base_transition_period = base_transition_period - 0.25;
             }
+            key_num = 10;
             break;
         case 'B':
             base_transition_period = base_transition_period + 0.25;
+            key_num = 11;
             break;
         case 'C':
-            cursor ^= 1;
+            key_num = 12;
             break;
         case 'D':
             status = locked;
+            key_num = 13;
             break;
         case '0':
             pattern = 0;
+            key_num = 0;
             break;
         case '1':
             pattern = 1;
+            key_num = 1;
             break;
         case '2':
             pattern = 2;
+            key_num = 2;
             break;
         case '3':
             pattern = 3;
+            key_num = 3;
             break;
         case '4':
             pattern = 4;
+            key_num = 4;
             break;
         case '5':
             pattern = 5;
+            key_num = 5;
             break;
         case '6':
             pattern = 6;
+            key_num = 6;
             break;
         case '7':
             pattern = 7;
+            key_num = 7;
+            break;
+        case '8':
+            key_num = 8;
+            break;
+        case '9':
+            key_num = 9; 
+            break;
+        case '*':
+            key_num = 14;
+            break;
+        case '#':
+            key_num = 15;
             break;
         }
     }
-    //i2c_write();      // led bar --> status, pattern, base period
+    i2c_write();        // led bar --> status, pattern, base period
                         // lcd --> status, pattern, base period, key, cursor
+}
+
+void i2c_write(void) {
+    LED_Packet[0] = status;
+    LED_Packet[1] = pattern;
+    LED_Packet[2] = base_transition_period / 0.25;
+    UCB1CTLW0 |= UCTXSTT;       // start condition
+    __delay_cycles(100);
+
+    LCD_Packet[0] = status;
+    LCD_Packet[1] = key_num;
+    LCD_Packet[2] = base_transition_period / 0.25;
+    UCB0CTLW0 |= UCTXSTT;       // start condition
+    __delay_cycles(100);
 }
 
 void check_password(int key) {
@@ -461,23 +503,23 @@ __interrupt void RGB_Duty_ISR(void) {
 } 
 
 #pragma vector=EUSCI_B0_VECTOR
-__interrupt void EUSCI_B0_I2C_ISR(void){
-    if (Data_Cnt == (sizeof(Packet) - 1)) {
-        UCB0TXBUF = Packet[Data_Cnt];
-        Data_Cnt = 0;
+__interrupt void LCD_I2C_ISR(void){
+    if (LCD_Data_Cnt == (sizeof(LCD_Packet) - 1)) {
+        UCB0TXBUF = LCD_Packet[LCD_Data_Cnt];
+        LCD_Data_Cnt = 0;
     } else {
-        UCB0TXBUF = Packet[Data_Cnt];
-        Data_Cnt++;
+        UCB0TXBUF = LCD_Packet[LCD_Data_Cnt];
+        LCD_Data_Cnt++;
     }
 }
 
 #pragma vector=EUSCI_B1_VECTOR
-__interrupt void EUSCI_B1_I2C_ISR(void){
-    if (Data_Cnt == (sizeof(Packet) - 1)) {
-        UCB1TXBUF = Packet[Data_Cnt];
-        Data_Cnt = 0;
+__interrupt void LED_I2C_ISR(void){
+    if (LED_Data_Cnt == (sizeof(LED_Packet) - 1)) {
+        UCB1TXBUF = LED_Packet[LED_Data_Cnt];
+        LED_Data_Cnt = 0;
     } else {
-        UCB1TXBUF = Packet[Data_Cnt];
-        Data_Cnt++;
+        UCB1TXBUF = LED_Packet[LED_Data_Cnt];
+        LED_Data_Cnt++;
     }
 }
