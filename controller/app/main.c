@@ -66,33 +66,35 @@
 //******************************************************************************
 #include <msp430.h>
 
-char key = 'N';                             // stores key that was pressed
+int status = 0;                             // tracks locked, unlocked, or unlocking
+int locked = 0;                             // status value for locked
+int unlocking = 1;                          // status value for unlocking
+int unlocked = 2;                           // status value for unlocked
+
+int col = 0;                                // variable that marks what columb of the keypad was pressed
+int key_pad_flag = 0;
+int int_en = 0;                             //stops intterupt from flagging after inputs go high
+int pressed = 0;
+char key = 'N';                             // starts the program at NA until a key gets pressed
+
 char password_char1 = '5';                  // first digit of password
 char password_char2 = '2';                  // second digit of password
 char password_char3 = '9';                  // third digit of password
 char password_char4 = '3';                  // fourth digit of password
 int password_index = 1;                     // tracks which digit is being entered
 
-int status = 0;                             // tracks locked, unlocked, or unlocking
-int locked = 0;                             // status value for locked
-int unlocking = 1;                          // status value for unlocking
-int unlocked = 2;                           // status value for unlocked
-
 int pattern = -1;                           // stores pattern to be generated
 int cursor = 0;                             // stores whether cursor is on or off
 float base_transition_period = 1.0;         // stores base transition period for led bar patterns
 
-int row = 0;
-int col = 0;
-
 int Data_Cnt = 0;
 char Packet[] = {0x03, 0x33, 0x44, 0x55};
 
-void rgb_led_init(void) {
+void init_rgb_led(void) {
     WDTCTL = WDTPW | WDTHOLD;                    // Stop watchdog timer           
     PM5CTL0 &= ~LOCKLPM5;                        // Disable High Z mode
 
-    // Set P2.0 (red), P2.1 (green), P2.2 (blue) as outputs for RGB led
+    // Set P6.0 (red), P6.1 (green), P6.2 (blue) as outputs for RGB led
     P6DIR |= (BIT0 | BIT1 | BIT2);  
     P6OUT &= ~(BIT0 | BIT1 | BIT2); 
 
@@ -113,22 +115,18 @@ void rgb_led_init(void) {
     __enable_interrupt();                        // enable interrupts
 }
 
-void keypad_init(void) {
-    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer           
+void init_keypad(void) {
+    WDTCTL = WDTPW | WDTHOLD;                    // Stop watchdog timer           
+    PM5CTL0 &= ~LOCKLPM5;                        // Disable High Z mode
 
-    P1DIR |= (BIT4 | BIT5 | BIT6 | BIT7);   // Set keypad row pins as outputs
-    P1OUT |= (BIT4 | BIT5 | BIT6 | BIT7);   // sets output high to start
+    //--set up ports
+    P1DIR |=  (BIT4   |   BIT5   |   BIT6   |   BIT7);  // Set keypad row pins as outputs
+    P1OUT |=  (BIT4   |   BIT5   |   BIT6   |   BIT7);  // sets output high to start
 
-    P2DIR &= ~(BIT0 | BIT1 | BIT2 | BIT3);  // Set P1.4 - p1.7 as input
-    P2REN |= (BIT0 | BIT1 | BIT2 | BIT3);   // Enable pull-up/down resistors
-    P2OUT &= ~(BIT0 | BIT1 | BIT2 | BIT3);  // Set as pull-down
-    P2IES |= (BIT0 | BIT1 | BIT2 | BIT3);   // Config IRQ sensitivity H-to-L
-
-    PM5CTL0 &= ~LOCKLPM5;                   // Disable low power mode
-
-    P2IFG &= ~(BIT0 | BIT1 | BIT2 | BIT3);  // Clear P2.0-2.3 IRQ Flag
-    P2IE |= (BIT0 | BIT1 | BIT2 | BIT3);    // Enable P2.0-2.3 IRQ
-    __enable_interrupt();                   // Enable Maskable IRQs
+    // Set column pins as input with pull-down resistor
+    P2DIR &= ~(BIT0   |   BIT1   |   BIT2   |   BIT3); // Set P1.4 - p1.7 as input
+    P2REN |=  (BIT0   |   BIT1   |   BIT2   |   BIT3); // Enable pull-up/down resistors
+    P2OUT &= ~(BIT0   |   BIT1   |   BIT2   |   BIT3); // Set as pull-down
 }
 
 void i2c_b0_init(void) {
@@ -183,72 +181,147 @@ void i2c_b1_init(void) {
     __enable_interrupt();                   // Enable Maskable IRQs
 }
 
-int main(void)
-{
-    keypad_init();
-    rgb_led_init();
+int main(void) {
+    init_rgb_led();
+    init_keypad();
     i2c_b0_init();
     i2c_b1_init();
-
-    update_rgb_led(locked);
+    update_rgb_led(locked);                 // start up RGB led 
 
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
     
     P1OUT &= ~BIT0;                         // Clear P1.0 output latch for a defined power-on state
     P1DIR |= BIT0;                          // Set P1.0 to output direction
 
-    PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode
-                                            // to activate previously configured port settings
+    PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode to activate previously configured port settings
 
-    while(1)
-    {
+    while(1) {
+        pressed = (P2IN & 0b00001111);
+        if (pressed > 0 && int_en == 0){
+            key_pad_flag = 1;
+            int_en = 1;
+        }
+        if (pressed == 0){
+            int_en = 0;
+        }
+        if(key_pad_flag == 1){
+            get_key();
+            update_leds(status);
+            P1DIR |=  (BIT4   |   BIT5   |   BIT6   |   BIT7); 
+            key_pad_flag = 0;                                   // stops the ISR from prematurly setting keypad flag
+        }
+
         P1OUT ^= BIT0;                      // Toggle P1.0 using exclusive-OR
         __delay_cycles(100000);             // Delay for 100000*(1/MCLK)=0.1s
     }
+}    
+
+void get_key() {
+    P1OUT &= ~(BIT5 | BIT6 | BIT7);  // clears outputs to start other than BIT4
+    P1OUT |= BIT4; // Activate first row
+    get_column();  
+
+    switch(col){
+    case 1:
+        key = '1';
+        break;
+    case 2:
+        key = '2';
+        break;
+    case 3:
+        key = '3';
+        break;
+    case 4:
+        key = 'A';
+        break;
+    case 0:
+        break;
+    }
+
+    P1OUT &= ~BIT4;      
+    P1OUT |= BIT5; // Activate second row
+    get_column();  
+        
+    switch(col){
+    case 1:
+        key = '4';
+        break;
+    case 2:
+        key = '5';
+        break;
+    case 3:
+        key = '6';
+        break;
+    case 4:
+        key = 'B';
+        break;
+    case 0:
+        break;
+    }
+
+    P1OUT &= ~BIT5; 
+    P1OUT |= BIT6; // Activate third row
+    get_column();  
+
+    switch(col){
+    case 1:
+        key = '7';
+        break;
+    case 2:
+        key = '8';
+        break;
+    case 3:
+        key = '9';
+        break;
+    case 4:
+        key = 'C';
+        break;
+    case 0:
+        break;
+    }
+
+    P1OUT &= ~BIT6; 
+    P1OUT |= BIT7; // Activate forth row
+    get_column();  
+
+    switch(col){
+    case 1:
+        key = '*';
+        break;
+    case 2:
+        key = '0';
+        break;
+    case 3:
+        key = '#';
+        break;
+    case 4:
+        key = 'D';
+        break;
+    case 0:
+        break;
+    }
+    P1OUT &= ~BIT7; 
+
+    process_key();
 }
 
-void update_rgb_led(int status) {
+void get_column() {
+    int col_1 = (P2IN & BIT0) ? 1 : 0;
+    int col_2 = (P2IN & BIT1) ? 1 : 0;
+    int col_3 = (P2IN & BIT2) ? 1 : 0;
+    int col_4 = (P2IN & BIT3) ? 1 : 0;
 
-    if (status == unlocked) {                
-        set_rgb_led_pwm(1,1,254);           // blue
-    } else if (status == unlocking) {         
-        set_rgb_led_pwm(254,20,1);          // orange
-    } else if (status == locked) {        
-        set_rgb_led_pwm(254,1,1);           // red
+    if (col_1 == 1) {
+        col = 1;
+    } else if (col_2 == 1) {
+        col = 2;
+    } else if (col_3 == 1) {
+        col = 3;
+    } else if (col_4 == 1) {
+        col = 4;
     } else {
-        set_rgb_led_pwm(0,0,0);             // off
+        col = 0;  // No key pressed
     }
-}
-
-void set_rgb_led_pwm(int red, int green, int blue) {
-    TB3CCR1 = red*64;   // Red brightness
-    TB3CCR2 = green*64; // Green brightness
-    TB3CCR3 = blue*64;  // Blue brightness
-}
-
-void get_key(void) {
-    char key_map[4][4] = {
-        {'1', '2', '3', 'A'},
-        {'4', '5', '6', 'B'},
-        {'7', '8', '9', 'C'},
-        {'*', '0', '#', 'D'}
-    };
-
-    for (row = 0; row < 4; row++) {
-        P1OUT &= ~(BIT4 | BIT5 | BIT6 | BIT7);  // Clear all rows
-        P1OUT |= (BIT4 << row);  // Set one row high at a time
-        __delay_cycles(1000); 
-
-        for (col = 0; col < 4; col++) {
-            if (P2IN & (BIT0 << col)) {  // Check if column is high
-                key = key_map[row][col];
-                process_key();
-            }
-        }
-    }
-    P1OUT |= (BIT4 | BIT5 | BIT6 | BIT7);  // Reset all rows
-    row = 0;                               // Reset row variable
-    col = 0;                               // Reset column variable
 }
 
 void process_key() {
@@ -345,10 +418,22 @@ void check_password(void) {
     }
 }
 
-#pragma vector=PORT2_VECTOR
-__interrupt void KEYPAD_ISR(void) {
-    get_key();
-    P2IFG &= ~(BIT0 | BIT1 | BIT2 | BIT3);
+void update_rgb_led(int status) {
+    if (status == unlocked) {                
+        set_rgb_led_pwm(1,1,254);           // blue
+    } else if (status == unlocking) {         
+        set_rgb_led_pwm(254,20,1);          // orange
+    } else if (status == locked) {        
+        set_rgb_led_pwm(254,1,1);           // red
+    } else {
+        set_rgb_led_pwm(0,0,0);             // off
+    }
+}
+
+void set_rgb_led_pwm(int red, int green, int blue) {
+    TB3CCR1 = red*64;   // Red brightness
+    TB3CCR2 = green*64; // Green brightness
+    TB3CCR3 = blue*64;  // Blue brightness
 }
 
 #pragma vector = TIMER3_B0_VECTOR
