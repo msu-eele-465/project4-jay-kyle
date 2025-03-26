@@ -153,6 +153,8 @@ void process_i2c_data(void) {
     if (key_num >= 0 && key_num <= 7) {
         pattern = key_num;
         update_led_bar(status, pattern);
+    } else if (key_num == -1) {
+        write_8bit_value(0b00000000);
     }
 }
 
