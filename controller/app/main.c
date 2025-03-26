@@ -88,11 +88,12 @@ float base_transition_period = 1.0;         // stores base transition period for
 
 int LED_Data_Cnt = 0;
 int LCD_Data_Cnt = 0;
-int Data_Packet[] = {0x00, 0x00, 0x00};               // status, key_num, base_period
+int LED_Packet[] = {0x00, 0x00, 0x00};      // status, key_num, base_period
+int LCD_Packet[] = {0x00, 0x00, 0x00};      // status, key_num, base_period
 
 void init_rgb_led(void) {
-    WDTCTL = WDTPW | WDTHOLD;                    // Stop watchdog timer           
-    PM5CTL0 &= ~LOCKLPM5;                        // Disable High Z mode
+    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer           
+    PM5CTL0 &= ~LOCKLPM5;                   // Disable High Z mode
 
     // Set P6.0 (red), P6.1 (green), P6.2 (blue) as outputs for RGB led
     P6DIR |= (BIT0 | BIT1 | BIT2);  
@@ -333,9 +334,12 @@ void process_key(int key) {
 }
 
 void i2c_write(void) {
-    Data_Packet[0] = status;
-    Data_Packet[1] = key_num;
-    Data_Packet[2] = base_transition_period / 0.25;     // scalar for base period of 1.0s
+    LCD_Packet[0] = status;
+    LCD_Packet[1] = key_num;
+    LCD_Packet[2] = base_transition_period / 0.25;     // scalar for base period of 1.0s
+    LED_Packet[0] = status;
+    LED_Packet[1] = key_num;
+    LED_Packet[2] = base_transition_period / 0.25;     // scalar for base period of 1.0s
     UCB1CTLW0 |= UCTXSTT;                               // start condition
     __delay_cycles(100);
     UCB0CTLW0 |= UCTXSTT;                               // start condition
@@ -427,22 +431,22 @@ __interrupt void RGB_Duty_ISR(void) {
 
 #pragma vector=EUSCI_B0_VECTOR
 __interrupt void LCD_I2C_ISR(void){
-    if (LCD_Data_Cnt == (sizeof(Data_Packet) - 1)) {
-        UCB0TXBUF = Data_Packet[LCD_Data_Cnt];
+    if (LCD_Data_Cnt == (sizeof(LCD_Packet) - 1)) {
+        UCB0TXBUF = LCD_Packet[LCD_Data_Cnt];
         LCD_Data_Cnt = 0;
     } else {
-        UCB0TXBUF = Data_Packet[LCD_Data_Cnt];
+        UCB0TXBUF = LCD_Packet[LCD_Data_Cnt];
         LCD_Data_Cnt++;
     }
 }
 
 #pragma vector=EUSCI_B1_VECTOR
 __interrupt void LED_I2C_ISR(void){
-    if (LED_Data_Cnt == (sizeof(Data_Packet) - 1)) {
-        UCB1TXBUF = Data_Packet[LED_Data_Cnt];
+    if (LED_Data_Cnt == (sizeof(LED_Packet) - 1)) {
+        UCB1TXBUF = LED_Packet[LED_Data_Cnt];
         LED_Data_Cnt = 0;
     } else {
-        UCB1TXBUF = Data_Packet[LED_Data_Cnt];
+        UCB1TXBUF = LED_Packet[LED_Data_Cnt];
         LED_Data_Cnt++;
     }
 }

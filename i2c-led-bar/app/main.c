@@ -102,7 +102,7 @@ void init_led_bar(void) {
 
     // Configure Timer B0
     TB0CTL |= (TBSSEL__ACLK | MC__UP | TBCLR); // Use ACLK, up mode, clear
-    TB0CCR0 = (int)(base_transition_scalar * 32768);    // 1s for ACLK (32768Hz)
+    TB0CCR0 = (int)(base_transition_scalar * 8192);    // 1s for ACLK (32768Hz)
 
     // Enable and clear interrupts for each color channel
     TB0CCTL0 |= CCIE;                            // Interrupt for pattern transistions
@@ -185,7 +185,7 @@ void update_led_bar(int status, int pattern) {
             }
         }
         current_pattern = next_pattern;
-    }                 
+    }        
 }
 
 #pragma vector = TIMER0_B0_VECTOR
@@ -287,19 +287,24 @@ __interrupt void Pattern_Transition_ISR(void) {
 __interrupt void LED_I2C_ISR(void){
     switch(__even_in_range(UCB0IV, USCI_I2C_UCBIT9IFG)) {
         case USCI_NONE: break;
+
         case USCI_I2C_UCSTTIFG:   // START condition
-            Data_Cnt = 0;       // Reset buffer index
+            Data_Cnt = 0;         // Reset buffer index
             break;
-        case USCI_I2C_UCSTPIFG:   // STOP condition
-            if (Data_Cnt == 3) {
-                process_i2c_data();
-            }
-            break;
-        case USCI_I2C_UCRXIFG0:   // Receive buffer full
+
+        case USCI_I2C_UCRXIFG0:   // Byte received
             if (Data_Cnt < 3) {
                 Data_In[Data_Cnt++] = UCB0RXBUF;
             }
+            if (Data_Cnt == 3) {
+                process_i2c_data();  
+            }
             break;
+
+        case USCI_I2C_UCSTPIFG:   // STOP condition
+            UCB0IFG &= ~UCSTPIFG;  // Clear stop flag
+            break;
+
         default: break;
     }
 }
