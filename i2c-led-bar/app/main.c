@@ -71,9 +71,10 @@ int unlocked = 2;
 int unlocking = 1;
 int locked = 0;
 
-int pattern = 0;     
-int current_pattern = 0;   
-int next_pattern = 0;    
+int key_num = 15;
+int pattern = 1;     
+int current_pattern = 1;   
+int next_pattern = 1;    
 int pattern1 = 0;                       
 int pattern2 = 0;                           
 int pattern3 = 0;
@@ -95,9 +96,9 @@ void init_led_bar(void) {
 
     // Set P1.0-1.1, P1.4-1.7, P2.6-2.7 as outputs for led bar
     P1DIR |= (BIT0 | BIT1 | BIT4 | BIT5 | BIT6 | BIT7);
-    P1OUT |= (BIT0 | BIT1 | BIT4 | BIT5 | BIT6 | BIT7);
+    P1OUT &= ~(BIT0 | BIT1 | BIT4 | BIT5 | BIT6 | BIT7);
     P2DIR |= (BIT6 | BIT7);
-    P2OUT |= (BIT6 | BIT7);
+    P2OUT &= ~(BIT6 | BIT7);
 
     // Configure Timer B0
     TB0CTL |= (TBSSEL__ACLK | MC__UP | TBCLR); // Use ACLK, up mode, clear
@@ -114,14 +115,11 @@ void i2c_b0_init(void) {
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
 
     UCB0CTLW0 |= UCSWRST;                   // Put eUSCI_B0 in SW Reset
-    UCB0CTLW0 |= UCSSEL__SMCLK;             // Choose BRCLK = SMCLK = 1Mhz
-    UCB0BRW = 10;                           // Divide BRCLK by 10 for SCL = 100kHz
     UCB0CTLW0 |= UCMODE_3;                  // Put into I2C mode
+    UCB0CTLW0 |= UCSYNC;                    // Synchronous
     UCB0CTLW0 &= ~UCMST;                    // Put into slave mode
-    UCB0CTLW0 &= ~UCTR;                     // Put into Rx mode
-    UCB0I2CSA = 0x0020;                     // Slave address = 0x20
-    UCB0CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
-    UCB0TBCNT = sizeof(Data_In);            // # of bytes in packet
+    UCB0I2COA0 = 0x0020 | UCOAEN;           // Own address + enable bit
+    UCB0CTLW1 &= ~UCASTP_3;                 // Use manual stop detection
 
     P1SEL1 &= ~BIT3;                        // P1.3 = SCL
     P1SEL0 |= BIT3;                            
@@ -132,7 +130,7 @@ void i2c_b0_init(void) {
 
     UCB0CTLW0 &= ~UCSWRST;                  // Take eUSCI_B0 out of SW Reset
 
-    UCB0IE |= UCRXIE0;                      // Enable I2C Rx0 IR1
+    UCB0IE |= UCRXIE0 | UCSTPIE | UCSTTIE;  // Enable I2C Rx0 IR1
     __enable_interrupt();                   // Enable Maskable IRQs
 }
 
@@ -140,26 +138,18 @@ int main(void)
 {
     init_led_bar();
     i2c_b0_init();
+    update_led_bar(unlocked, 1, base_transition_scalar);
 
-    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
-
-    P1OUT &= ~BIT0;                         // Clear P1.0 output latch for a defined power-on state
-    P1DIR |= BIT0;                          // Set P1.0 to output direction
-
-    PM5CTL0 &= ~LOCKLPM5;                   // Disable low power mode
-
-    while(1)
-    {
-        P1OUT ^= BIT0;                      // Toggle P1.0 using exclusive-OR
-        __delay_cycles(100000);             // Delay for 100000*(1/MCLK)=0.1s
+    while(1) {
+        __no_operation();
     }
 }
 
 void process_i2c_data(void) {
     status = Data_In[0];
-    pattern = Data_In[1];
+    key_num = Data_In[1];
     base_transition_scalar = Data_In[2];
-    update_led_bar(status, pattern, base_transition_scalar);
+    update_led_bar(status, key_num, base_transition_scalar);
 }
 
 void write_8bit_value(int byte) {
@@ -180,20 +170,14 @@ void update_led_bar(int status, int pattern, int base_transition_scalar) {
     if (status == unlocked) {                   
         next_pattern = pattern;
         if (next_pattern == current_pattern) {
-            if (pattern == 1) {
-                pattern1 = 0b01010101;
-            } else if (pattern == 2) {
-                pattern2 = 0b11111111;
-            } else if (pattern == 3) {
-                pattern3_step = 0;
-            } else if (pattern == 4) {
-                pattern4 = 0b00000000;      
-            } else if (pattern == 5) {
-                pattern5 = 0b10000000;
-            } else if (pattern == 6) {
-                pattern6_step = 0;
-            } else if (pattern == 7) {
-                pattern7 = 0b11111111;
+            switch (pattern) {
+                case 1: pattern1 = 0b01010101; break;
+                case 2: pattern2 = 0b11111111; break;
+                case 3: pattern3_step = 0;     break;
+                case 4: pattern4 = 0b00000000; break;
+                case 5: pattern5 = 0b10000000; break;
+                case 6: pattern6_step = 0;     break;
+                case 7: pattern7 = 0b11111111; break;
             }
         }
         current_pattern = next_pattern;
@@ -297,15 +281,13 @@ __interrupt void Pattern_Transition_ISR(void) {
 }
 
 #pragma vector=EUSCI_B0_VECTOR
-__interrupt void LCD_I2C_ISR(void){
+__interrupt void LED_I2C_ISR(void){
     switch(__even_in_range(UCB0IV, USCI_I2C_UCBIT9IFG)) {
         case USCI_NONE: break;
         case USCI_I2C_UCSTTIFG:   // START condition
             Data_Cnt = 0;       // Reset buffer index
-            UCB0IFG &= ~UCSTTIFG;
             break;
         case USCI_I2C_UCSTPIFG:   // STOP condition
-            UCB0IFG &= ~UCSTPIFG;
             if (Data_Cnt == 3) {
                 process_i2c_data();
             }
