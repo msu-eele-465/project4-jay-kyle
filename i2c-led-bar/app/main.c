@@ -71,10 +71,10 @@ int unlocked = 2;
 int unlocking = 1;
 int locked = 0;
 
-int key_num = 15;
-int pattern = 1;     
-int current_pattern = 1;   
-int next_pattern = 1;    
+int key_num = -1;
+int pattern = -1;     
+int current_pattern = -1;   
+int next_pattern = -1;    
 int pattern1 = 0;                       
 int pattern2 = 0;                           
 int pattern3 = 0;
@@ -134,11 +134,9 @@ void i2c_b0_init(void) {
     __enable_interrupt();                   // Enable Maskable IRQs
 }
 
-int main(void)
-{
+int main(void) {
     init_led_bar();
     i2c_b0_init();
-    update_led_bar(unlocked, 1, base_transition_scalar);
 
     while(1) {
         __no_operation();
@@ -149,7 +147,13 @@ void process_i2c_data(void) {
     status = Data_In[0];
     key_num = Data_In[1];
     base_transition_scalar = Data_In[2];
-    update_led_bar(status, key_num, base_transition_scalar);
+
+    TB0CCR0 = (int)(base_transition_scalar * 8192);     // 8192 = 0.25s for ACLK (32768Hz)
+
+    if (key_num >= 0 && key_num <= 7) {
+        pattern = key_num;
+        update_led_bar(status, pattern);
+    }
 }
 
 void write_8bit_value(int byte) {
@@ -166,8 +170,8 @@ void write_8bit_value(int byte) {
     if (byte & (1 << 7)) P1OUT |= BIT0;  // bit 7 → P1.0
 }
 
-void update_led_bar(int status, int pattern, int base_transition_scalar) {
-    if (status == unlocked) {                   
+void update_led_bar(int status, int pattern) {
+    if (status == unlocked) {  
         next_pattern = pattern;
         if (next_pattern == current_pattern) {
             switch (pattern) {
@@ -181,8 +185,7 @@ void update_led_bar(int status, int pattern, int base_transition_scalar) {
             }
         }
         current_pattern = next_pattern;
-    }
-    TB0CCR0 = (int)(base_transition_scalar * 8192);     // 8192 = 0.25s for ACLK (32768Hz)
+    }                 
 }
 
 #pragma vector = TIMER0_B0_VECTOR
