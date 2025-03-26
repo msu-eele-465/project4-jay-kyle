@@ -76,7 +76,7 @@ int key_pad_flag = 0;
 int int_en = 0;                             //stops intterupt from flagging after inputs go high
 int pressed = 0;
 char key = 'N';                             // starts the program at NA until a key gets pressed
-int key_num = 0;                            // binary representation of key that was pressed
+int key_num = -1;                            // binary representation of key that was pressed
 
 char password_char1 = '5';                  // first digit of password
 char password_char2 = '2';                  // second digit of password
@@ -88,8 +88,7 @@ float base_transition_period = 1.0;         // stores base transition period for
 
 int LED_Data_Cnt = 0;
 int LCD_Data_Cnt = 0;
-int LED_Packet[] = {0x00, 0x00, 0x00};      // status, key_num, base_period
-int LCD_Packet[] = {0x00, 0x00, 0x00};      // status, key_num, base_period
+char Data_Packet[] = {0x00, 0x00, 0x00};      // status, key_num, base_period
 
 void init_rgb_led(void) {
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer           
@@ -141,7 +140,7 @@ void i2c_b0_init(void) {
     UCB0CTLW0 |= UCTR;                      // Put into Tx mode
     UCB0I2CSA = 0x0020;                     // Slave address = 0x20
     UCB0CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
-    UCB0TBCNT = sizeof(LCD_Packet);         // # of bytes in packet
+    UCB0TBCNT = sizeof(Data_Packet);         // # of bytes in packet
 
     P1SEL1 &= ~BIT3;                        // P1.3 = SCL
     P1SEL0 |= BIT3;                            
@@ -167,7 +166,7 @@ void i2c_b1_init(void) {
     UCB1CTLW0 |= UCTR;                      // Put into Tx mode
     UCB1I2CSA = 0x0020;                     // Slave address = 0x20
     UCB1CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
-    UCB1TBCNT = sizeof(LED_Packet);         // # of bytes in packet
+    UCB1TBCNT = sizeof(Data_Packet);         // # of bytes in packet
 
     P4SEL1 &= ~BIT7;                        // P4.7 = SCL
     P4SEL0 |= BIT7;                            
@@ -189,13 +188,6 @@ int main(void) {
     i2c_b1_init();
     update_rgb_led(locked);                 // start up RGB led 
 
-    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
-    
-    P1OUT &= ~BIT0;                         // Clear P1.0 output latch for a defined power-on state
-    P1DIR |= BIT0;                          // Set P1.0 to output direction
-
-    PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode to activate previously configured port settings
-
     while(1) {
         pressed = (P2IN & 0b00001111);
         if (pressed > 0 && int_en == 0){
@@ -210,12 +202,6 @@ int main(void) {
             P1DIR |=  (BIT4 | BIT5 | BIT6 | BIT7); 
             key_pad_flag = 0;                                   // stops the ISR from prematurly setting keypad flag
         }
-
-        P1OUT ^= BIT0;                      // Toggle P1.0 using exclusive-OR
-        __delay_cycles(100000);             // Delay for 100000*(1/MCLK)=0.1s
-
-        //UCB1CTLW0 |= UCTXSTT;       // start condition
-        //__delay_cycles(10000);
     }
 }    
 
@@ -334,12 +320,9 @@ void process_key(int key) {
 }
 
 void i2c_write(void) {
-    LCD_Packet[0] = status;
-    LCD_Packet[1] = key_num;
-    LCD_Packet[2] = base_transition_period / 0.25;     // scalar for base period of 1.0s
-    LED_Packet[0] = status;
-    LED_Packet[1] = key_num;
-    LED_Packet[2] = base_transition_period / 0.25;     // scalar for base period of 1.0s
+    Data_Packet[0] = status;
+    Data_Packet[1] = key_num;
+    Data_Packet[2] = base_transition_period / 0.25;     // scalar for base period of 1.0s
     UCB1CTLW0 |= UCTXSTT;                               // start condition
     __delay_cycles(100);
     UCB0CTLW0 |= UCTXSTT;                               // start condition
@@ -380,6 +363,7 @@ void check_password(int key) {
         case 4:
             if (key == password_char4) {
                 status = unlocked;
+                key_num = -1;
                 update_rgb_led(unlocked);
                 password_index = 1;
             } else {
@@ -431,22 +415,22 @@ __interrupt void RGB_Duty_ISR(void) {
 
 #pragma vector=EUSCI_B0_VECTOR
 __interrupt void LCD_I2C_ISR(void){
-    if (LCD_Data_Cnt == (sizeof(LCD_Packet) - 1)) {
-        UCB0TXBUF = LCD_Packet[LCD_Data_Cnt];
+    if (LCD_Data_Cnt == (sizeof(Data_Packet) - 1)) {
+        UCB0TXBUF = Data_Packet[LCD_Data_Cnt];
         LCD_Data_Cnt = 0;
     } else {
-        UCB0TXBUF = LCD_Packet[LCD_Data_Cnt];
+        UCB0TXBUF = Data_Packet[LCD_Data_Cnt];
         LCD_Data_Cnt++;
     }
 }
 
 #pragma vector=EUSCI_B1_VECTOR
 __interrupt void LED_I2C_ISR(void){
-    if (LED_Data_Cnt == (sizeof(LED_Packet) - 1)) {
-        UCB1TXBUF = LED_Packet[LED_Data_Cnt];
+    if (LED_Data_Cnt == (sizeof(Data_Packet) - 1)) {
+        UCB1TXBUF = Data_Packet[LED_Data_Cnt];
         LED_Data_Cnt = 0;
     } else {
-        UCB1TXBUF = LED_Packet[LED_Data_Cnt];
+        UCB1TXBUF = Data_Packet[LED_Data_Cnt];
         LED_Data_Cnt++;
     }
 }

@@ -185,7 +185,13 @@ void update_led_bar(int status, int pattern) {
             }
         }
         current_pattern = next_pattern;
-    }        
+    } else {
+        pattern = -1;                   // reset everything when system gets locked
+        current_pattern = -1;
+        next_pattern = -1;
+        base_transition_scalar = 4;
+        write_8bit_value(0x00);  
+    }      
 }
 
 #pragma vector = TIMER0_B0_VECTOR
