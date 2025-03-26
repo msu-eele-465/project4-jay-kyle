@@ -89,8 +89,8 @@ float base_transition_period = 1.0;         // stores base transition period for
 
 int LED_Data_Cnt = 0;
 int LCD_Data_Cnt = 0;
-char LED_Packet[] = {0x01, 0x02, 0x03};               // status, pattern, base_period
-char LCD_Packet[] = {0x00, 0x00, 0x00};               // status, key, base_period
+int LED_Packet[] = {0x00, 0x00, 0x00};               // status, pattern, base_period
+int LCD_Packet[] = {0x00, 0x00, 0x00};               // status, key, base_period
 
 void init_rgb_led(void) {
     WDTCTL = WDTPW | WDTHOLD;                    // Stop watchdog timer           
