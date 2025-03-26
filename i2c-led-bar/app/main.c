@@ -84,7 +84,10 @@ int pattern7 = 0;
 int pattern3_step = 0;
 int pattern6_step = 0;
 
-float base_transition_scalar = 1.0;   
+int base_transition_scalar = 4;   
+
+int Data_Cnt = 0;
+int Data_In[] = {0x00, 0x00, 0x00};
 
 void init_led_bar(void) {
     WDTCTL = WDTPW | WDTHOLD;                    // Stop watchdog timer           
@@ -98,7 +101,7 @@ void init_led_bar(void) {
 
     // Configure Timer B0
     TB0CTL |= (TBSSEL__ACLK | MC__UP | TBCLR); // Use ACLK, up mode, clear
-    TB0CCR0 = (int)(base_transition_scalar * 32768);
+    TB0CCR0 = (int)(base_transition_scalar * 32768);    // 1s for ACLK (32768Hz)
 
     // Enable and clear interrupts for each color channel
     TB0CCTL0 |= CCIE;                            // Interrupt for pattern transistions
@@ -115,10 +118,10 @@ void i2c_b0_init(void) {
     UCB0BRW = 10;                           // Divide BRCLK by 10 for SCL = 100kHz
     UCB0CTLW0 |= UCMODE_3;                  // Put into I2C mode
     UCB0CTLW0 &= ~UCMST;                    // Put into slave mode
-    UCB0CTLW0 |= UCTR;                      // Put into Tx mode
+    UCB0CTLW0 &= ~UCTR;                     // Put into Rx mode
     UCB0I2CSA = 0x0020;                     // Slave address = 0x20
     UCB0CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
-    UCB0TBCNT = sizeof(LCD_Packet);         // # of bytes in packet
+    UCB0TBCNT = sizeof(Data_In);            // # of bytes in packet
 
     P1SEL1 &= ~BIT3;                        // P1.3 = SCL
     P1SEL0 |= BIT3;                            
@@ -129,19 +132,21 @@ void i2c_b0_init(void) {
 
     UCB0CTLW0 &= ~UCSWRST;                  // Take eUSCI_B0 out of SW Reset
 
-    UCB0IE |= UCTXIE0;                      // Enable I2C Tx0 IR1
+    UCB0IE |= UCRXIE0;                      // Enable I2C Rx0 IR1
     __enable_interrupt();                   // Enable Maskable IRQs
 }
 
 int main(void)
 {
+    init_led_bar();
+    i2c_b0_init();
+
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
 
     P1OUT &= ~BIT0;                         // Clear P1.0 output latch for a defined power-on state
     P1DIR |= BIT0;                          // Set P1.0 to output direction
 
-    PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode
-                                            // to activate previously configured port settings
+    PM5CTL0 &= ~LOCKLPM5;                   // Disable low power mode
 
     while(1)
     {
@@ -151,9 +156,9 @@ int main(void)
 }
 
 void process_i2c_data(void) {
-    status = 0;
-    pattern = 0;
-    base_transition_scalar = 0;
+    status = Data_In[0];
+    pattern = Data_In[1];
+    base_transition_scalar = Data_In[2];
     update_led_bar(status, pattern, base_transition_scalar);
 }
 
@@ -193,7 +198,7 @@ void update_led_bar(int status, int pattern, int base_transition_scalar) {
         }
         current_pattern = next_pattern;
     }
-    TB0CCR0 = (int)(base_transition_scalar * 8192);
+    TB0CCR0 = (int)(base_transition_scalar * 8192);     // 8192 = 0.25s for ACLK (32768Hz)
 }
 
 #pragma vector = TIMER0_B0_VECTOR
@@ -293,11 +298,23 @@ __interrupt void Pattern_Transition_ISR(void) {
 
 #pragma vector=EUSCI_B0_VECTOR
 __interrupt void LCD_I2C_ISR(void){
-    if (LCD_Data_Cnt == (sizeof(LCD_Packet) - 1)) {
-        UCB0TXBUF = LCD_Packet[LCD_Data_Cnt];
-        LCD_Data_Cnt = 0;
-    } else {
-        UCB0TXBUF = LCD_Packet[LCD_Data_Cnt];
-        LCD_Data_Cnt++;
+    switch(__even_in_range(UCB0IV, USCI_I2C_UCBIT9IFG)) {
+        case USCI_NONE: break;
+        case USCI_I2C_UCSTTIFG:   // START condition
+            Data_Cnt = 0;       // Reset buffer index
+            UCB0IFG &= ~UCSTTIFG;
+            break;
+        case USCI_I2C_UCSTPIFG:   // STOP condition
+            UCB0IFG &= ~UCSTPIFG;
+            if (Data_Cnt == 3) {
+                process_i2c_data();
+            }
+            break;
+        case USCI_I2C_UCRXIFG0:   // Receive buffer full
+            if (Data_Cnt < 3) {
+                Data_In[Data_Cnt++] = UCB0RXBUF;
+            }
+            break;
+        default: break;
     }
 }
