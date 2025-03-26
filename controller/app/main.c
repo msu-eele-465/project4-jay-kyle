@@ -349,6 +349,7 @@ void process_key(int key) {
             break;
         case 'D':
             status = locked;
+            update_rgb_led(status);
             key_num = 13;
             break;
         case '0':
@@ -404,13 +405,13 @@ void process_key(int key) {
 void i2c_write(void) {
     LED_Packet[0] = status;
     LED_Packet[1] = pattern;
-    LED_Packet[2] = base_transition_period / 0.25;
+    LED_Packet[2] = base_transition_period / 0.25;      // scalar for base period of 1.0s
     UCB1CTLW0 |= UCTXSTT;       // start condition
     __delay_cycles(100);
 
     LCD_Packet[0] = status;
     LCD_Packet[1] = key_num;
-    LCD_Packet[2] = base_transition_period / 0.25;
+    LCD_Packet[2] = base_transition_period / 0.25;      // scalar for base period of 1.0s
     UCB0CTLW0 |= UCTXSTT;       // start condition
     __delay_cycles(100);
 }
