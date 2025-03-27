@@ -7,39 +7,53 @@ Jay Graham, Kyle Stopplecamp
 This project involved building a multi-MCU embedded system where a controller (MSP430FR2355) communicates via I2C with two peripheral MCUs (MSP430FR2310) to control an LED bar and an LCD. The controller reads input from a 16-button keypad, requiring an unlock code before allowing user interaction. Once unlocked, keypad inputs are used to select LED patterns and update LCD displays, with real-time feedback through RGB indicators and status LEDs. The system emphasizes modular design, proper I2C communication, and the ability to program standalone MSP430 devices.
 
 ### High-Level Flowcharts
-![High-Level Flowcharts](project3_flowchart.png)
+![High-Level Flowcharts](proj4_flowcharts.png)
 
 ### Circuit Diagram
-![Circuit Diagram](project3_circuit_diagram.png)
+![Circuit Diagram](proj4_circuit_diagram_1.png)
 
 ### Software Architecture
-![Software Architecture](project3_architecture.png)
+![Software Architecture](proj4_architecture_diagram.png)
 
 ## DEMO
 Done with TA on 2/25/25
 
 ## Review of Results
-| Workload                                                          | Total |    Jay    |    Kyle   |
-|-------------------------------------------------------------------|-------|-----------|-----------|
-|Introduction                                                       | 1     |     1     |     0     |
-|Circuit diagram                                                    | 1     |     0     |     1     |
-|Main loop flowchart                                                | 1     |     0     |     1     |
-|System architecture diagram                                        | 1     |     1     |     0     |
-|Professional demo                                                  | 2     |     1     |     1     |
-|System starts in a locked state                                    | 0.5   |    0.5    |     0     |
-|Unlock code works and is 4-digits long                             | 4     |     0     |     4     |
-|LED is set to correct color when locked                            | 0.5   |    0.5    |     0     |
-|LED is set to correct color when being unlocked                    | 0.5   |    0.5    |     0     |
-|LED is set to correct color when unlocked                          | 0.5   |    0.5    |     0     |
-|Extra credit: LED is set to a unique color for each LED pattern    | 0     |     -     |     -     |
-|When the system is locked, all LEDs are off                        | 0.5   |    0.5    |     0     |
-|When LEDs are off until a user selects a pattern                   | 0.5   |    0.5    |     0     |
-|When the selected pattern is the same, the pattern restarts        | 0.5   |    0.5    |     0     |
-|When a new pattern is selected, the pattern must start within 1 s  | 2     |     1     |     1     |
-|Previously selected pattern starts where it left off               | 0.5   |    0.5    |     0     |
-|LED pattern transition period is changeable                        | 2     |     0     |     2     |
-|LED pattern 0                                                      | 0.5   |    0.5    |     0     |
-|LED pattern 1                                                      | 0.5   |    0.5    |     0     |
-|LED pattern 2                                                      | 0.5   |    0.5    |     0     |
-|LED pattern 3                                                      | 0.5   |    0.5    |     0     |
-|                                                                   | 20    |    10     |    10     |
+| Requirement/specification                                                                                | Points | Jay       | Kyle      |
+|----------------------------------------------------------------------------------------------------------|--------|-----------|-----------|
+| **Presentation**                                                                                         |        |           |           |
+| Introduction                                                                                             | 1      |    1      |           |
+| Circuit diagram                                                                                          | 2      |    2      |           |
+| System architecture diagram                                                                              | 2      |    2      |           |
+| Controller high-level flowchart                                                                          | 1      |    1      |           |
+| LED peripheral high-level flowchart                                                                      | 1      |    1      |           |
+| LCD peripheral high-level flowchart                                                                      | 1      |    1      |           |
+| Professional demo                                                                                        | 2      |    2      |           |
+| **LED Patterns**                                                                                         |        |           |           |
+| LED patterns work correctly                                                                              | 1      |    1      |           |
+| **LCD Display**                                                                                          |        |           |           |
+| LCD is blank when the system is locked                                                                   | 0.5    |           |    0.5    |
+| LCD displays current keypress when unlocked                                                              | 1      |           |    1      |
+| LCD displays  LED pattern name                                                                           | 2      |           |    2      |
+| Pressing “C” toggles the cursor state (on or off)                                                        | 1      |           |    1      |
+| Pressing “9” toggles the cursor’s blink state (blinking or not blinking)                                 | 1      |           |    1      |
+| **Main controller**                                                                                      |        |           |           |
+| System must have a status indicator that indicates whether system is locked, being unlocked, or unlocked | 0.5    |    0.5    |           |
+| The system should respond quickly to a key press                                                         | 1      |    1      |           |
+| The system must communicate to the LED peripheral when a pattern button is pressed                       | 2      |    2      |           |
+| The system must communicate to the LCD peripheral when any key is pressed                                | 2      |    2      |           |
+| **LED bar peripheral**                                                                                   |        |           |           |
+| Status indicator must indicate when the system has received data                                         | 0.25   |    0.25   |           |
+| Status indicator must indicate when the system has not received data for some time                       | 0.25   |    0.25   |           |
+| System must be controlled via i2c                                                                        | 2      |    2      |           |
+| **LCD peripheral**                                                                                       |        |           |           |
+| Status indicator must indicate when the system has received data                                         | 0.25   |           |    0.25   |
+| Status indicator must indicate when the system has not received data for some time                       | 0.25   |           |    0.25   |
+| System must be controlled via i2c                                                                        | 2      |           |    2      |
+| System must be able to write characters to all 32 segments                                               | 4      |           |    4      |
+| System must be able to write all characters between 00100011 and 01111111 in the Character Font Table    | 4      |           |    4      |
+| LCD contrast is adjustable                                                                               | 2      |           |    2      |
+| LCD must be able to be cleared                                                                           | 1      |           |    1      |
+| LCD cursor can be turned off and on                                                                      | 1      |           |    1      |
+| LCD cursor’s blink functionality can be turned off and on                                                | 1      |           |    1      |
+| Total                                                                                                    | 40     |    19     |    21     |
