@@ -1,4 +1,4 @@
-#include <msp430.h> 
+/*#include <msp430.h> 
 
     int pattern = 0;
     int cursor_status = 1;
@@ -7,7 +7,7 @@
     int j = 0;
     int k = 0;
     int timing_step = 0;
-/*
+
     TB0CTL |= TBCLR;
     TB0CTL |= TBSSEL__ACLK;
     TB0CTL |= MC__UP;
@@ -17,7 +17,7 @@
     TB0CCTL0 &= ~CCIFG; */
 /**
  * main.c
- */
+ 
 int main(void)
 {
     WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
@@ -149,7 +149,7 @@ int setup(void){
     return 0;
 }
 
-/*/ ---------- ISR ------------------
+/ ---------- ISR ------------------
 #pragma vector = TIMER0_B0_VECTOR
 __interrupt void ISR_TB0_CCR0(void){
     if(timing_step == 0){

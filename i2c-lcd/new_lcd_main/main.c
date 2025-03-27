@@ -1,4 +1,4 @@
-#include <msp430.h> 
+/*#include <msp430.h> 
 
 int pattern = 0;
 int cursor_status = 1;
@@ -392,3 +392,4 @@ __interrupt void LED_I2C_ISR(void){
         default: break;
     }
 }
+*/

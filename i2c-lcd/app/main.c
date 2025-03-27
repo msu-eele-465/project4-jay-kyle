@@ -122,23 +122,23 @@ int main(void)
 }
 
 void process_i2c_data(void) {
-    status = Data_In[1];
-    key_num = Data_In[2];
+    status = Data_In[0];
+    key_num = Data_In[1];
     //base_transition_period = Data_In[2] * 0.25;
 
     if(key_num != last_key){
         if (key_num != 9 && key_num != 12){
-            clear_display();
-            print_pattern(key_num);
-            print_key(key_num);
-        }
+            clear_display();}
+        print_pattern(key_num);
+        print_key(key_num);
+        
     }
     __delay_cycles(2000);
     last_key = key_num;
 
 }
 
-int print_pattern(int pattern){
+void print_pattern(int pattern){
     if(pattern == 0){
         return_home();
         sw_bits();
@@ -247,7 +247,7 @@ int print_pattern(int pattern){
         byte(0b0110,0b1000);
         byte(0b0111,0b0100);
     }
-    else if(pattern == 7){
+    /*else if(pattern == 7){
         return_home();
         sw_bits();
         byte(0b0110,0b0110);
@@ -260,8 +260,8 @@ int print_pattern(int pattern){
         byte(0b0110,0b0101);
         byte(0b0110,0b0110);
         byte(0b0111,0b0100);
-    }
-    return 0;
+    }*/
+
 }
 
 int sw_bits(void){
