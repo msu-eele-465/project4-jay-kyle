@@ -145,7 +145,7 @@ void i2c_status_led_init( void) {
 
     // Configure Timer B1
     TB1CTL |= (TBSSEL__ACLK | MC__UP | TBCLR);  // Use ACLK, up mode, clear
-    TB1CCR0 = 16384;                            // ACLK ~32768Hz, so 0.5s = 16384)
+    TB1CCR0 = 32768;                            // 1s timer
 
     // Enable and clear interrupts for each color channel
     TB1CCTL0 |= CCIE;                           // Interrupt for pattern transistions
@@ -328,6 +328,7 @@ __interrupt void LED_I2C_ISR(void){
             if (Data_Cnt == 3) {
                 process_i2c_data(); 
                 last_i2c_time = 0;  // Reset I2C activity timer 
+                P2OUT |= BIT0;
             }
             break;
 
@@ -343,9 +344,7 @@ __interrupt void LED_I2C_ISR(void){
 __interrupt void Timer1_ISR(void) {
     last_i2c_time++;
 
-    if (last_i2c_time >= 4) { // 2 seconds (0.5s * 4)
-        P2OUT |= BIT0;        // Turn ON LED (no I2C recently)
-    } else {
+    if (last_i2c_time >= 3) { // 3 seconds
         P2OUT &= ~BIT0;       // Turn OFF LED (recent I2C activity)
     }
 
