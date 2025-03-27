@@ -7,6 +7,10 @@ int blink_status = 1;
 int Data_Cnt = 0;
 int Data_In[] = {0x00, 0x00, 0x00};
 
+int status = -1;
+int key_num = -1;
+float base_transition_period = 0.00;
+
 void i2c_b0_init(void) {
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
 
@@ -60,6 +64,12 @@ int main(void)
 	    print_key('9');
 	}
 	return 0;
+}
+
+void process_i2c_data(void) {
+    status = Data_In[0];
+    key_num = Data_In[1];
+    base_transition_period = Data_In[2] * 0.25;
 }
 
 int print_pattern(int pattern){
