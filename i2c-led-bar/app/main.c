@@ -90,6 +90,8 @@ int base_transition_scalar = 4;
 int Data_Cnt = 0;
 int Data_In[] = {0x00, 0x00, 0x00};
 
+int last_i2c_time = 0;
+
 void init_led_bar(void) {
     WDTCTL = WDTPW | WDTHOLD;                    // Stop watchdog timer           
     PM5CTL0 &= ~LOCKLPM5;                        // Disable High Z mode
@@ -134,9 +136,28 @@ void i2c_b0_init(void) {
     __enable_interrupt();                   // Enable Maskable IRQs
 }
 
+void i2c_status_led_init( void) {
+    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
+    PM5CTL0 &= ~LOCKLPM5;                        // Disable High Z mode
+
+    P2DIR |= BIT0;                          // Set P2.0 as output
+    P2OUT &= ~BIT0;                         // Clear P2.0
+
+    // Configure Timer B1
+    TB1CTL |= (TBSSEL__ACLK | MC__UP | TBCLR);  // Use ACLK, up mode, clear
+    TB1CCR0 = 16384;                            // ACLK ~32768Hz, so 0.5s = 16384)
+
+    // Enable and clear interrupts for each color channel
+    TB1CCTL0 |= CCIE;                           // Interrupt for pattern transistions
+    TB1CCTL0 &= ~CCIFG;
+
+    __enable_interrupt();                       // enable interrupts
+}
+
 int main(void) {
     init_led_bar();
     i2c_b0_init();
+    i2c_status_led_init();
 
     while(1) {
         __no_operation();
@@ -305,14 +326,28 @@ __interrupt void LED_I2C_ISR(void){
                 Data_In[Data_Cnt++] = UCB0RXBUF;
             }
             if (Data_Cnt == 3) {
-                process_i2c_data();  
+                process_i2c_data(); 
+                last_i2c_time = 0;  // Reset I2C activity timer 
             }
             break;
 
-        case USCI_I2C_UCSTPIFG:   // STOP condition
-            UCB0IFG &= ~UCSTPIFG;  // Clear stop flag
+        case USCI_I2C_UCSTPIFG:     // STOP condition
+            UCB0IFG &= ~UCSTPIFG;   // Clear stop flag
             break;
 
         default: break;
     }
+}
+
+#pragma vector = TIMER1_B0_VECTOR
+__interrupt void Timer1_ISR(void) {
+    last_i2c_time++;
+
+    if (last_i2c_time >= 4) { // 2 seconds (0.5s * 4)
+        P2OUT |= BIT0;        // Turn ON LED (no I2C recently)
+    } else {
+        P2OUT &= ~BIT0;       // Turn OFF LED (recent I2C activity)
+    }
+
+    TB1CCTL0 &= ~CCIFG;       // Clear flag
 }
