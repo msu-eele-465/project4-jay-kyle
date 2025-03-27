@@ -307,6 +307,10 @@ __interrupt void Pattern_Transition_ISR(void) {
             write_8bit_value(pattern7);
         }
     } else {
+        pattern = -1;                   // reset everything when system gets locked
+        current_pattern = -1;
+        next_pattern = -1;
+        base_transition_scalar = 4;
         write_8bit_value(0b00000000);
     }
     TB0CCTL0 &= ~ CCIFG;            // Clear interrupt flag
