@@ -107,7 +107,7 @@ int main(void)
 
 	//-- Setup Ports
 	P1DIR   |= 0b11110011;
-    P1OUT   &= ~0b1110011;
+    P1OUT   &= ~0b11110011;
     P2DIR   |= BIT0;
     P2OUT   &= ~BIT0;
 
