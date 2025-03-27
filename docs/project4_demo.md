@@ -16,7 +16,7 @@ This project involved building a multi-MCU embedded system where a controller (M
 ![Software Architecture](proj4_architecture_diagram.png)
 
 ## DEMO
-Done with TA on 2/25/25
+Done with TA or Trevor on 3/27/25
 
 ## Review of Results
 | Requirement/specification                                                                                | Points | Jay       | Kyle      |
