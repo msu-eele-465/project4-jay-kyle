@@ -106,19 +106,27 @@ int main(void)
     PM5CTL0 &= ~LOCKLPM5;       // Disable high z mode
 
 	//-- Setup Ports
-	P6DIR   |= 0b1111111;
-    P6OUT   &= ~0b1111111;
+	P1DIR   |= 0b11110011;
+    P1OUT   &= ~0b1110011;
+    P2DIR   |= BIT0;
+    P2OUT   &= ~BIT0;
 
 	setup();
     i2c_b0_init();
 
 	while(1){
 	    clear_display();
+        __delay_cycles(40000);
 	    print_pattern(7);
+        __delay_cycles(40000);
 	    print_key('A');
+        __delay_cycles(40000);
 	    print_key('B');
+        __delay_cycles(40000);
 	    print_key('C');
+        __delay_cycles(40000);
 	    print_key('D');
+        __delay_cycles(40000);
 	    print_key('9');
 	    print_key('1');
 	    print_key('C');
@@ -141,8 +149,8 @@ void process_i2c_data(void) {
 int print_pattern(int pattern){
     if(pattern == 0){
         return_home();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0111,0b0011);
         byte(0b0111,0b0100);
         byte(0b0110,0b0001);
@@ -152,8 +160,8 @@ int print_pattern(int pattern){
     }
     else if(pattern == 1){
         return_home();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0111,0b0100);
         byte(0b0110,0b1111);
         byte(0b0110,0b0111);
@@ -163,13 +171,13 @@ int print_pattern(int pattern){
     }
     else if(pattern == 2){
         return_home();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0111,0b0101);
         byte(0b0111,0b0000);
         shift_right();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0110,0b0011);
         byte(0b0110,0b1111);
         byte(0b0111,0b0101);
@@ -180,19 +188,19 @@ int print_pattern(int pattern){
     }
     else if(pattern == 3){
         return_home();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0110,0b1001);
         byte(0b0110,0b1110);
         shift_right();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0110,0b0001);
         byte(0b0110,0b1110);
         byte(0b0110,0b0100);
         shift_right();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0110,0b1111);
         byte(0b0111,0b0101);
         byte(0b0111,0b0100);
@@ -200,15 +208,15 @@ int print_pattern(int pattern){
     }
     else if(pattern == 4){
         return_home();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0110,0b0100);
         byte(0b0110,0b1111);
         byte(0b0111,0b0111);
         byte(0b0110,0b1110);
         shift_right();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0110,0b0011);
         byte(0b0110,0b1111);
         byte(0b0111,0b0101);
@@ -219,8 +227,8 @@ int print_pattern(int pattern){
     }
     else if(pattern == 5){
         return_home();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0111,0b0010);
         byte(0b0110,0b1111);
         byte(0b0111,0b0100);
@@ -228,12 +236,12 @@ int print_pattern(int pattern){
         byte(0b0111,0b0100);
         byte(0b0110,0b0101);
         shift_right();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0011,0b0001);
         shift_right();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0110,0b1100);
         byte(0b0110,0b0101);
         byte(0b0110,0b0110);
@@ -241,8 +249,8 @@ int print_pattern(int pattern){
     }
     else if(pattern == 6){
         return_home();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0111,0b0010);
         byte(0b0110,0b1111);
         byte(0b0111,0b0100);
@@ -250,12 +258,12 @@ int print_pattern(int pattern){
         byte(0b0111,0b0100);
         byte(0b0110,0b0101);
         shift_right();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0011,0b0111);
         shift_right();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0111,0b0010);
         byte(0b0110,0b1001);
         byte(0b0110,0b0111);
@@ -264,15 +272,15 @@ int print_pattern(int pattern){
     }
     else if(pattern == 7){
         return_home();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0110,0b0110);
         byte(0b0110,0b1001);
         byte(0b0110,0b1100);
         byte(0b0110,0b1100);
         shift_right();
-        P6OUT   |= BIT6;
-        P6OUT   &= ~BIT5;
+        P1OUT   |= BIT0;
+        P1OUT   &= ~BIT1;
         byte(0b0110,0b1100);
         byte(0b0110,0b0101);
         byte(0b0110,0b0110);
@@ -283,20 +291,20 @@ int print_pattern(int pattern){
 
 int print_key(int key){
     // DD Ram set key-------------------------------------------
-    P6OUT   &= ~BIT6;
+    P1OUT   &= ~BIT0;
     byte(0b1100, 0b1111);
     // End DD Ram set key-------------------------------------------
 
     // write Key
-    P6OUT   |= BIT6;
-    P6OUT   &= ~BIT5;
+    P1OUT   |= BIT0;
+    P1OUT   &= ~BIT1;
     if(key == 'A'){byte(0b0100, 0b0001);}
 
     else if(key == 'B'){byte(0b0100, 0b0010);}
 
     else if(key == 'C'){
         byte(0b0100, 0b0011);
-        P6OUT   &= ~BIT6;
+        P1OUT   &= ~BIT0;
         cursor_status ^=  0b1;
         if (blink_status == 1){
             if(cursor_status == 1){
@@ -336,7 +344,7 @@ int print_key(int key){
 
     else if(key == '9'){
         byte(0b0011, 0b1001);
-        P6OUT   &= ~BIT6;
+        P1OUT   &= ~BIT0;
         blink_status ^=  0b1;
         if (cursor_status == 1){
             if(blink_status == 1){
@@ -363,42 +371,44 @@ int print_key(int key){
     return 0;
 }
 int byte(int upper, int lower){
+    upper = upper<<4;
+    lower = lower<<4;
     __delay_cycles(5000);
-    P6OUT   &= ~0b1111;
-    P6OUT   |= upper;
-    P6OUT   |= BIT4;
+    P1OUT   &= ~0b11110000;
+    P1OUT   |= upper;
+    P2OUT   |= BIT0;
     __delay_cycles(4000);
-    P6OUT   &= ~BIT4;
+    P2OUT   &= ~BIT0;
     __delay_cycles(2000);
 
     __delay_cycles(2000);
-    P6OUT   &= ~0b1111;
-    P6OUT   |= lower;
-    P6OUT   |= BIT4;
+    P1OUT   &= ~0b11110000;
+    P1OUT   |= lower;
+    P2OUT   |= BIT0;
     __delay_cycles(4000);
-    P6OUT   &= ~BIT4;
+    P2OUT   &= ~BIT0;
     __delay_cycles(5000);
     // End DD Ram set key-------------------------------------------
     return 0;
 }
 
 int shift_right(void){
-    P6OUT   &= ~BIT6;
-    P6OUT   &= ~BIT5;
+    P1OUT   &= ~BIT0;
+    P1OUT   &= ~BIT1;
     byte(0b0001,0b0100);
     return 0;
 }
 
 int shift_left(void){
-    P6OUT   &= ~BIT6;
-    P6OUT   &= ~BIT5;
+    P1OUT   &= ~BIT0;
+    P1OUT   &= ~BIT1;
     byte(0b0001,0b0000);
     return 0;
 }
 
 int clear_display(void){
-    P6OUT   &= ~BIT6;
-    P6OUT   &= ~BIT5;
+    P1OUT   &= ~BIT0;
+    P1OUT   &= ~BIT1;
     // Clear display
     byte(0b0000, 0b0001);
 
@@ -406,8 +416,8 @@ int clear_display(void){
 }
 
 int return_home(void){
-    P6OUT   &= ~BIT6;
-    P6OUT   &= ~BIT5;
+    P1OUT   &= ~BIT0;
+    P1OUT   &= ~BIT1;
     // Return Home -------------------------------------------
     byte(0b0000, 0b0010);
 
@@ -415,8 +425,8 @@ int return_home(void){
 }
 int setup(void){
     // 4 Bit Mode -----------------------------------------
-    P6OUT   &= ~BIT6;
-    P6OUT   &= ~BIT5;
+    P1OUT   &= ~BIT0;
+    P1OUT   &= ~BIT1;
 
     byte(0b0010, 0b1100);
 
