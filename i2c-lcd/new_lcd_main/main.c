@@ -1,30 +1,48 @@
 #include <msp430.h> 
 
-    int pattern = 0;
-    int cursor_status = 1;
-    int blink_status = 1;
-/**
- * main.c
- */
+int pattern = 0;
+int cursor_status = 1;
+int blink_status = 1;
+
+int Data_Cnt = 0;
+int Data_In[] = {0x00, 0x00, 0x00};
+
+void i2c_b0_init(void) {
+    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
+
+    UCB0CTLW0 |= UCSWRST;                   // Put eUSCI_B0 in SW Reset
+    UCB0CTLW0 |= UCMODE_3;                  // Put into I2C mode
+    UCB0CTLW0 |= UCSYNC;                    // Synchronous
+    UCB0CTLW0 &= ~UCMST;                    // Put into slave mode
+    UCB0I2COA0 = 0x0020 | UCOAEN;           // Own address + enable bit
+    UCB0CTLW1 &= ~UCASTP_3;                 // Use manual stop detection
+
+    P1SEL1 &= ~BIT3;                        // P1.3 = SCL
+    P1SEL0 |= BIT3;                            
+    P1SEL1 &= ~BIT2;                        // P1.2 = SDA
+    P1SEL0 |= BIT2;
+
+    PM5CTL0 &= ~LOCKLPM5;                   // Disable low power mode
+
+    UCB0CTLW0 &= ~UCSWRST;                  // Take eUSCI_B0 out of SW Reset
+
+    UCB0IE |= UCRXIE0 | UCSTPIE | UCSTTIE;  // Enable I2C Rx0 IR1
+    __enable_interrupt();                   // Enable Maskable IRQs
+}
+
 int main(void)
 {
 	WDTCTL = WDTPW | WDTHOLD;	// stop watchdog timer
-	
-	//-- Setup Ports
+    PM5CTL0 &= ~LOCKLPM5;       // Disable high z mode
 
+	//-- Setup Ports
 	P6DIR   |= 0b1111111;
     P6OUT   &= ~0b1111111;
-	PM5CTL0 &= ~LOCKLPM5;
-
 
 	setup();
-
-
-
+    i2c_b0_init();
 
 	while(1){
-
-
 	    clear_display();
 	    print_pattern(7);
 	    print_key('A');
@@ -40,13 +58,7 @@ int main(void)
 	    print_key('6');
 	    print_key('7');
 	    print_key('9');
-
-
-
-
-
 	}
-
 	return 0;
 }
 
@@ -343,4 +355,30 @@ int setup(void){
 
     //End Display on  -------------------------------------------
     return 0;
+}
+
+#pragma vector=EUSCI_B0_VECTOR
+__interrupt void LED_I2C_ISR(void){
+    switch(__even_in_range(UCB0IV, USCI_I2C_UCBIT9IFG)) {
+        case USCI_NONE: break;
+
+        case USCI_I2C_UCSTTIFG:   // START condition
+            Data_Cnt = 0;         // Reset buffer index
+            break;
+
+        case USCI_I2C_UCRXIFG0:   // Byte received
+            if (Data_Cnt < 3) {
+                Data_In[Data_Cnt++] = UCB0RXBUF;
+            }
+            if (Data_Cnt == 3) {
+                process_i2c_data();  
+            }
+            break;
+
+        case USCI_I2C_UCSTPIFG:   // STOP condition
+            UCB0IFG &= ~UCSTPIFG;  // Clear stop flag
+            break;
+
+        default: break;
+    }
 }
