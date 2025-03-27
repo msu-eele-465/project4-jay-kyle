@@ -64,9 +64,9 @@
 //   July 2015
 //   Built with IAR Embedded Workbench v6.30 & Code Composer Studio v6.1 
 //******************************************************************************
-#include <msp430.h> 
+#include <msp430.h>
 
-int pattern = 0;
+//int pattern = 0;
 int cursor_status = 1;
 int blink_status = 1;
 
@@ -75,7 +75,8 @@ int Data_In[] = {0x00, 0x00, 0x00};
 
 int status = -1;
 int key_num = -1;
-float base_transition_period = 0.00;
+int last_key = -1;
+//float base_transition_period = 0.00;
 
 void i2c_b0_init(void) {
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
@@ -88,7 +89,7 @@ void i2c_b0_init(void) {
     UCB0CTLW1 &= ~UCASTP_3;                 // Use manual stop detection
 
     P1SEL1 &= ~BIT3;                        // P1.3 = SCL
-    P1SEL0 |= BIT3;                            
+    P1SEL0 |= BIT3;
     P1SEL1 &= ~BIT2;                        // P1.2 = SDA
     P1SEL0 |= BIT2;
 
@@ -102,55 +103,45 @@ void i2c_b0_init(void) {
 
 int main(void)
 {
-	WDTCTL = WDTPW | WDTHOLD;	// stop watchdog timer
+    WDTCTL = WDTPW | WDTHOLD;   // stop watchdog timer
     PM5CTL0 &= ~LOCKLPM5;       // Disable high z mode
 
-	//-- Setup Ports
-	P1DIR   |= 0b11110011;
+    //-- Setup Ports
+    P1DIR   |= 0b11110011;
     P1OUT   &= ~0b11110011;
     P2DIR   |= BIT0;
     P2OUT   &= ~BIT0;
 
-	setup();
+    setup();
     i2c_b0_init();
 
-	while(1){
-	    clear_display();
-        __delay_cycles(40000);
-	    print_pattern(7);
-        __delay_cycles(40000);
-	    print_key('A');
-        __delay_cycles(40000);
-	    print_key('B');
-        __delay_cycles(40000);
-	    print_key('C');
-        __delay_cycles(40000);
-	    print_key('D');
-        __delay_cycles(40000);
-	    print_key('9');
-	    print_key('1');
-	    print_key('C');
-	    print_key('9');
-	    print_key('C');
-	    print_key('5');
-	    print_key('6');
-	    print_key('7');
-	    print_key('9');
-	}
-	return 0;
+    while(1){
+
+    }
+
 }
 
 void process_i2c_data(void) {
-    status = Data_In[0];
-    key_num = Data_In[1];
-    base_transition_period = Data_In[2] * 0.25;
+    status = Data_In[1];
+    key_num = Data_In[2];
+    //base_transition_period = Data_In[2] * 0.25;
+
+    if(key_num != last_key){
+        if (key_num != 9 && key_num != 12){
+            clear_display();
+            print_pattern(key_num);
+            print_key(key_num);
+        }
+    }
+    __delay_cycles(2000);
+    last_key = key_num;
+
 }
 
 int print_pattern(int pattern){
     if(pattern == 0){
         return_home();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0111,0b0011);
         byte(0b0111,0b0100);
         byte(0b0110,0b0001);
@@ -160,8 +151,7 @@ int print_pattern(int pattern){
     }
     else if(pattern == 1){
         return_home();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0111,0b0100);
         byte(0b0110,0b1111);
         byte(0b0110,0b0111);
@@ -171,13 +161,11 @@ int print_pattern(int pattern){
     }
     else if(pattern == 2){
         return_home();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0111,0b0101);
         byte(0b0111,0b0000);
         shift_right();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0110,0b0011);
         byte(0b0110,0b1111);
         byte(0b0111,0b0101);
@@ -188,19 +176,16 @@ int print_pattern(int pattern){
     }
     else if(pattern == 3){
         return_home();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0110,0b1001);
         byte(0b0110,0b1110);
         shift_right();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0110,0b0001);
         byte(0b0110,0b1110);
         byte(0b0110,0b0100);
         shift_right();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0110,0b1111);
         byte(0b0111,0b0101);
         byte(0b0111,0b0100);
@@ -208,15 +193,13 @@ int print_pattern(int pattern){
     }
     else if(pattern == 4){
         return_home();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0110,0b0100);
         byte(0b0110,0b1111);
         byte(0b0111,0b0111);
         byte(0b0110,0b1110);
         shift_right();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0110,0b0011);
         byte(0b0110,0b1111);
         byte(0b0111,0b0101);
@@ -227,8 +210,7 @@ int print_pattern(int pattern){
     }
     else if(pattern == 5){
         return_home();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0111,0b0010);
         byte(0b0110,0b1111);
         byte(0b0111,0b0100);
@@ -236,12 +218,10 @@ int print_pattern(int pattern){
         byte(0b0111,0b0100);
         byte(0b0110,0b0101);
         shift_right();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0011,0b0001);
         shift_right();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0110,0b1100);
         byte(0b0110,0b0101);
         byte(0b0110,0b0110);
@@ -249,8 +229,7 @@ int print_pattern(int pattern){
     }
     else if(pattern == 6){
         return_home();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0111,0b0010);
         byte(0b0110,0b1111);
         byte(0b0111,0b0100);
@@ -258,12 +237,10 @@ int print_pattern(int pattern){
         byte(0b0111,0b0100);
         byte(0b0110,0b0101);
         shift_right();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0011,0b0111);
         shift_right();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0111,0b0010);
         byte(0b0110,0b1001);
         byte(0b0110,0b0111);
@@ -272,15 +249,13 @@ int print_pattern(int pattern){
     }
     else if(pattern == 7){
         return_home();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0110,0b0110);
         byte(0b0110,0b1001);
         byte(0b0110,0b1100);
         byte(0b0110,0b1100);
         shift_right();
-        P1OUT   |= BIT0;
-        P1OUT   &= ~BIT1;
+        sw_bits();
         byte(0b0110,0b1100);
         byte(0b0110,0b0101);
         byte(0b0110,0b0110);
@@ -289,6 +264,10 @@ int print_pattern(int pattern){
     return 0;
 }
 
+int sw_bits(void){
+    P1OUT   |= BIT0;
+    P1OUT   &= ~BIT1;
+}
 int print_key(int key){
     // DD Ram set key-------------------------------------------
     P1OUT   &= ~BIT0;
@@ -296,13 +275,12 @@ int print_key(int key){
     // End DD Ram set key-------------------------------------------
 
     // write Key
-    P1OUT   |= BIT0;
-    P1OUT   &= ~BIT1;
-    if(key == 'A'){byte(0b0100, 0b0001);}
+    sw_bits();
+    if(key == 10){byte(0b0100, 0b0001);}
 
-    else if(key == 'B'){byte(0b0100, 0b0010);}
+    else if(key == 11){byte(0b0100, 0b0010);}
 
-    else if(key == 'C'){
+    else if(key == 12){
         byte(0b0100, 0b0011);
         P1OUT   &= ~BIT0;
         cursor_status ^=  0b1;
@@ -324,25 +302,25 @@ int print_key(int key){
         }
     }
 
-    else if(key == 'D'){byte(0b0100, 0b0100);}
+    else if(key == 13){clear_display();}
 
-    else if(key == '0'){byte(0b0011, 0b0000);}
+    else if(key == 0){byte(0b0011, 0b0000);}
 
-    else if(key == '1'){byte(0b0011, 0b0001);}
+    else if(key == 1){byte(0b0011, 0b0001);}
 
-    else if(key == '2'){byte(0b0011, 0b0010);}
+    else if(key == 2){byte(0b0011, 0b0010);}
 
-    else if(key == '3'){byte(0b0011, 0b0011);}
+    else if(key == 3){byte(0b0011, 0b0011);}
 
-    else if(key == '4'){byte(0b0011, 0b0100);}
+    else if(key == 4){byte(0b0011, 0b0100);}
 
-    else if(key == '5'){byte(0b0011, 0b0101);}
+    else if(key == 5){byte(0b0011, 0b0101);}
 
-    else if(key == '6'){byte(0b0011, 0b0110);}
+    else if(key == 6){byte(0b0011, 0b0110);}
 
-    else if(key == '7'){byte(0b0011, 0b0111);}
+    else if(key == 7){byte(0b0011, 0b0111);}
 
-    else if(key == '9'){
+    else if(key == 9){
         byte(0b0011, 0b1001);
         P1OUT   &= ~BIT0;
         blink_status ^=  0b1;
@@ -393,18 +371,10 @@ int byte(int upper, int lower){
 }
 
 int shift_right(void){
-    P1OUT   &= ~BIT0;
-    P1OUT   &= ~BIT1;
-    byte(0b0001,0b0100);
-    return 0;
+    sw_bits();
+    byte(0b0010,0b0000);
 }
 
-int shift_left(void){
-    P1OUT   &= ~BIT0;
-    P1OUT   &= ~BIT1;
-    byte(0b0001,0b0000);
-    return 0;
-}
 
 int clear_display(void){
     P1OUT   &= ~BIT0;
@@ -427,7 +397,7 @@ int setup(void){
     // 4 Bit Mode -----------------------------------------
     P1OUT   &= ~BIT0;
     P1OUT   &= ~BIT1;
-
+    __delay_cycles(4000);
     byte(0b0010, 0b1100);
 
     //  End 4 Bit Mode -----------------------------------------
@@ -457,7 +427,7 @@ __interrupt void LED_I2C_ISR(void){
                 Data_In[Data_Cnt++] = UCB0RXBUF;
             }
             if (Data_Cnt == 3) {
-                process_i2c_data();  
+                process_i2c_data();
             }
             break;
 
@@ -468,4 +438,3 @@ __interrupt void LED_I2C_ISR(void){
         default: break;
     }
 }
-
